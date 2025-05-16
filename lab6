@@ -1,0 +1,70 @@
+Build KNN Classification model for a given dataset
+
+
+import numpy as np
+import pandas as pd
+from collections import Counter
+
+# -----------------------------
+# 1. Sample Dataset
+# -----------------------------
+data = {
+    'Temperature': [30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
+    'Humidity':    [90, 85, 80, 78, 70, 65, 60, 55, 50, 45],
+    'RainToday':   ['Yes', 'Yes', 'Yes', 'Yes', 'No', 'No', 'No', 'No', 'No', 'No']
+}
+
+df = pd.DataFrame(data)
+
+# Encode target labels
+df['RainToday'] = df['RainToday'].map({'Yes': 1, 'No': 0})
+
+# -----------------------------
+# 2. Euclidean Distance Function
+# -----------------------------
+def euclidean_distance(x1, x2):
+    return np.sqrt(np.sum((x1 - x2)**2))
+
+# -----------------------------
+# 3. KNN Classifier Function
+# -----------------------------
+def knn_predict(X_train, y_train, x_test, k=3):
+    distances = []
+    for i in range(len(X_train)):
+        dist = euclidean_distance(X_train[i], x_test)
+        distances.append((dist, y_train[i]))
+    
+    # Sort by distance and get k nearest labels
+    distances.sort(key=lambda x: x[0])
+    k_labels = [label for _, label in distances[:k]]
+    
+    # Majority vote
+    vote = Counter(k_labels).most_common(1)[0][0]
+    return vote
+
+# -----------------------------
+# 4. Train and Predict
+# -----------------------------
+X = df[['Temperature', 'Humidity']].values
+y = df['RainToday'].values
+
+# New sample to classify
+new_sample = np.array([48, 66])  # 48°F and 66% humidity
+
+# Predict with k=3
+prediction = knn_predict(X, y, new_sample, k=3)
+
+# -----------------------------
+# 5. Output
+# -----------------------------
+print("== KNN Classification ==")
+print("New Sample:", new_sample)
+print(f"Predicted Class (RainToday): {'Yes' if prediction == 1 else 'No'}")
+
+
+OUTPUT:
+
+== KNN Classification ==
+
+New Sample: [48 66]
+Predicted Class (RainToday): No
