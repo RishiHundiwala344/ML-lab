@@ -1,0 +1,157 @@
+Implement Random forest ensemble method on a given dataset
+
+import numpy as np
+import pandas as pd
+import math
+from collections import Counter
+import random
+
+# -----------------------------
+# 1. Dataset (Play Tennis)
+# -----------------------------
+data = [
+    ['Sunny', 'Hot', 'High', False, 'No'],
+    ['Sunny', 'Hot', 'High', True, 'No'],
+    ['Overcast', 'Hot', 'High', False, 'Yes'],
+    ['Rain', 'Mild', 'High', False, 'Yes'],
+    ['Rain', 'Cool', 'Normal', False, 'Yes'],
+    ['Rain', 'Cool', 'Normal', True, 'No'],
+    ['Overcast', 'Cool', 'Normal', True, 'Yes'],
+    ['Sunny', 'Mild', 'High', False, 'No'],
+    ['Sunny', 'Cool', 'Normal', False, 'Yes'],
+    ['Rain', 'Mild', 'Normal', False, 'Yes'],
+    ['Sunny', 'Mild', 'Normal', True, 'Yes'],
+    ['Overcast', 'Mild', 'High', True, 'Yes'],
+    ['Overcast', 'Hot', 'Normal', False, 'Yes'],
+    ['Rain', 'Mild', 'High', True, 'No']
+]
+
+columns = ['Outlook', 'Temperature', 'Humidity', 'Windy', 'PlayTennis']
+df = pd.DataFrame(data, columns=columns)
+
+# -----------------------------
+# 2. Entropy & Info Gain Functions
+# -----------------------------
+def entropy(target_col):
+    counts = Counter(target_col)
+    total = len(target_col)
+    return -sum((count/total) * math.log2(count/total) for count in counts.values())
+
+def info_gain(df, split_attr, target_attr):
+    total_entropy = entropy(df[target_attr])
+    vals = df[split_attr].unique()
+    weighted_entropy = 0
+    for val in vals:
+        subset = df[df[split_attr] == val]
+        weighted_entropy += (len(subset)/len(df)) * entropy(subset[target_attr])
+    return total_entropy - weighted_entropy
+
+# -----------------------------
+# 3. ID3 Tree Builder with Feature Bagging
+# -----------------------------
+def id3(df, target_attr, attributes):
+    labels = df[target_attr]
+    if len(labels.unique()) == 1:
+        return labels.iloc[0]
+    if len(attributes) == 0:
+        return labels.mode()[0]
+
+    # Select subset of attributes randomly (sqrt of total)
+    subset_size = max(1, int(math.sqrt(len(attributes))))
+    selected_attrs = random.sample(attributes, subset_size)
+
+    gains = {attr: info_gain(df, attr, target_attr) for attr in selected_attrs}
+    best_attr = max(gains, key=gains.get)
+
+    tree = {best_attr: {}}
+    for val in df[best_attr].unique():
+        subset = df[df[best_attr] == val]
+ subtree = id3(subset, target_attr, [a for a in attributes if a != best_attr])
+        tree[best_attr][val] = subtree
+    return tree
+
+# -----------------------------
+# 4. Bootstrap Sampling
+# -----------------------------
+def bootstrap_sample(df):
+    n_samples = len(df)
+    indices = np.random.choice(n_samples, size=n_samples, replace=True)
+    return df.iloc[indices]
+
+# -----------------------------
+# 5. Random Forest Class
+# -----------------------------
+class RandomForest:
+    def __init__(self, n_trees=5):
+        self.n_trees = n_trees
+        self.trees = []
+        self.attributes = None
+        self.target = None
+
+    def fit(self, df, target_attr, attributes):
+        self.target = target_attr
+        self.attributes = attributes
+        for _ in range(self.n_trees):
+            sample = bootstrap_sample(df)
+            tree = id3(sample, target_attr, attributes)
+            self.trees.append(tree)
+
+    def classify_tree(self, tree, sample):
+        if not isinstance(tree, dict):
+            return tree
+        attr = next(iter(tree))
+        value = sample.get(attr)
+        if value not in tree[attr]:
+            # If unseen feature value, return mode of subtree (or 'Unknown')
+            return 'Unknown'
+        return self.classify_tree(tree[attr][value], sample)
+
+    def predict(self, samples):
+        results = []
+        for sample in samples:
+            votes = []
+            for tree in self.trees:
+                pred = self.classify_tree(tree, sample)
+                votes.append(pred)
+            # Majority vote ignoring 'Unknown'
+            votes = [v for v in votes if v != 'Unknown']
+            if votes:
+                final_pred = Counter(votes).most_common(1)[0][0]
+            else:
+                final_pred = 'Unknown'
+            results.append(final_pred)
+        return results
+
+# -----------------------------
+# 6. Train Random Forest
+# -----------------------------
+attributes = ['Outlook', 'Temperature', 'Humidity', 'Windy']
+target = 'PlayTennis'
+
+rf = RandomForest(n_trees=10)
+rf.fit(df, target, attributes)
+
+# -----------------------------
+# 7. Predict New Samples
+# -----------------------------
+new_samples = [
+    {'Outlook': 'Sunny', 'Temperature': 'Cool', 'Humidity': 'High', 'Windy': True},
+    {'Outlook': 'Rain', 'Temperature': 'Mild', 'Humidity': 'Normal', 'Windy': False},
+]
+
+predictions = rf.predict(new_samples)
+
+# -----------------------------
+# 8. Output
+# -----------------------------
+print("== Random Forest Predictions ==")
+for sample, pred in zip(new_samples, predictions):
+    print(f"Input: {sample} => Predicted: {pred}")
+
+
+OUTPUT:
+
+== Random Forest Predictions ==
+Input: {'Outlook': 'Sunny', 'Temperature': 'Cool', 'Humidity': 'High', 'Windy': True} => Predicted: No
+Input: {'Outlook': 'Rain', 'Temperature': 'Mild', 'Humidity': 'Normal', 'Windy': False} => Predicted: Yes
+
