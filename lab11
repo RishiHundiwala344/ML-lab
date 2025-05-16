@@ -1,0 +1,81 @@
+Implement Dimensionality reduction using Principal Component Analysis (PCA) method
+
+
+import numpy as np
+import pandas as pd
+
+def standardize(X):
+    """Standardize features to zero mean and unit variance"""
+    return (X - np.mean(X, axis=0)) / np.std(X, axis=0)
+
+def pca(X, n_components):
+    # Step 1: Standardize data
+    X_std = standardize(X)
+
+    # Step 2: Compute covariance matrix
+    cov_matrix = np.cov(X_std, rowvar=False)
+
+    # Step 3: Compute eigenvalues and eigenvectors
+    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+
+    # Step 4: Sort eigenvectors by descending eigenvalues
+    sorted_idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[sorted_idx]
+    eigenvectors = eigenvectors[:, sorted_idx]
+
+    # Step 5: Select top n_components eigenvectors (principal components)
+    components = eigenvectors[:, :n_components]
+
+    # Step 6: Project data
+    X_pca = np.dot(X_std, components)
+
+    return X_pca, eigenvalues, components
+
+# -----------------------------
+# Example Usage with Sample Data
+# -----------------------------
+# Create example dataset or load your own CSV file
+data = {
+    'Feature1': [2.5, 0.5, 2.2, 1.9, 3.1, 2.3, 2, 1, 1.5, 1.1],
+    'Feature2': [2.4, 0.7, 2.9, 2.2, 3, 2.7, 1.6, 1.1, 1.6, 0.9],
+    'Feature3': [1, 3, 2, 4, 5, 1, 2, 1, 3, 2]
+}
+df = pd.DataFrame(data)
+
+X = df.values
+n_components = 2
+
+X_reduced, eigenvalues, components = pca(X, n_components)
+
+print("Reduced data (first 2 principal components):")
+print(X_reduced)
+
+print("\nEigenvalues:")
+print(eigenvalues)
+
+print("\nPrincipal Components (eigenvectors):")
+print(components)
+
+
+
+OUTPUT:
+
+Reduced data (first 2 principal components):
+[[-1.33464313  0.18236219]
+ [-2.74540499 -0.03668303]
+ [-0.80719059 -0.27982202]
+ [-0.60117914 -0.24580249]
+ [-1.51377843  0.45088336]
+ [-1.08458099 -0.01252943]
+ [-1.5563464  -0.09316944]
+ [-2.28299081 -0.37639029]
+ [-1.71419074 -0.19499621]
+ [-2.3510216  -0.38885353]]
+
+Eigenvalues:
+[2.22135779 1.45080258 0.32619848]
+
+Principal Components (eigenvectors):
+[[ 0.6764725   0.65370205  0.33974892]
+ [ 0.73517866 -0.67392404 -0.07898289]
+ [ 0.02637013  0.34399291 -0.93884852]]
