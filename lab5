@@ -1,0 +1,125 @@
+Use an appropriate data set for building the decision tree (ID3) and apply this knowledge to classify a new sample
+
+
+import pandas as pd
+import math
+from collections import Counter
+
+# -----------------------------
+# 1. Sample Weather Dataset
+# -----------------------------
+data = [
+    ['Sunny', 'Hot', 'High', False, 'No'],
+    ['Sunny', 'Hot', 'High', True, 'No'],
+    ['Overcast', 'Hot', 'High', False, 'Yes'],
+    ['Rain', 'Mild', 'High', False, 'Yes'],
+    ['Rain', 'Cool', 'Normal', False, 'Yes'],
+    ['Rain', 'Cool', 'Normal', True, 'No'],
+    ['Overcast', 'Cool', 'Normal', True, 'Yes'],
+    ['Sunny', 'Mild', 'High', False, 'No'],
+    ['Sunny', 'Cool', 'Normal', False, 'Yes'],
+    ['Rain', 'Mild', 'Normal', False, 'Yes'],
+    ['Sunny', 'Mild', 'Normal', True, 'Yes'],
+    ['Overcast', 'Mild', 'High', True, 'Yes'],
+    ['Overcast', 'Hot', 'Normal', False, 'Yes'],
+    ['Rain', 'Mild', 'High', True, 'No']
+]
+
+columns = ['Outlook', 'Temperature', 'Humidity', 'Windy', 'PlayTennis']
+df = pd.DataFrame(data, columns=columns)
+
+# -----------------------------
+# 2. Entropy and Information Gain
+# -----------------------------
+def entropy(target_col):
+    counts = Counter(target_col)
+    total = len(target_col)
+    return -sum((count/total) * math.log2(count/total) for count in counts.values())
+
+def info_gain(df, split_attr, target_attr):
+    total_entropy = entropy(df[target_attr])
+    vals = df[split_attr].unique()
+    weighted_entropy = 0
+
+    for val in vals:
+        subset = df[df[split_attr] == val]
+        weighted_entropy += (len(subset)/len(df)) * entropy(subset[target_attr])
+
+    return total_entropy - weighted_entropy
+
+# -----------------------------
+# 3. ID3 Algorithm (Recursive Tree Builder)
+# -----------------------------
+def id3(df, target_attr, attributes):
+    labels = df[target_attr]
+    if len(labels.unique()) == 1:
+        return labels.iloc[0]
+    if len(attributes) == 0:
+        return labels.mode()[0]
+
+    gains = {attr: info_gain(df, attr, target_attr) for attr in attributes}
+    best_attr = max(gains, key=gains.get)
+
+    tree = {best_attr: {}}
+    for val in df[best_attr].unique():
+        subset = df[df[best_attr] == val]
+        subtree = id3(subset, target_attr, [a for a in attributes if a != best_attr])
+        tree[best_attr][val] = subtree
+    return tree
+
+# -----------------------------
+# 4. Train the Tree
+# -----------------------------
+attributes = ['Outlook', 'Temperature', 'Humidity', 'Windy']
+tree = id3(df, 'PlayTennis', attributes)
+
+# -----------------------------
+# 5. Classification Function
+# -----------------------------
+def classify(tree, sample):
+    if not isinstance(tree, dict):
+        return tree
+    attr = next(iter(tree))
+    value = sample[attr]
+    if value in tree[attr]:
+        return classify(tree[attr][value], sample)
+    else:
+        return 'Unknown'  # For unseen feature values
+
+# -----------------------------
+# 6. Predict on New Sample
+# -----------------------------
+new_sample = {
+    'Outlook': 'Sunny',
+    'Temperature': 'Cool',
+    'Humidity': 'High',
+    'Windy': True
+}
+
+prediction = classify(tree, new_sample)
+
+# -----------------------------
+# 7. Output
+# -----------------------------
+import pprint
+print("== ID3 Decision Tree ==")
+pprint.pprint(tree)
+print("\n== New Sample Classification ==")
+print("Input Sample:", new_sample)
+print("Predicted Class:", prediction)
+
+
+OUTPUT:
+
+== ID3 Decision Tree ==
+{'Outlook': {
+    'Overcast': 'Yes',
+    'Rain': {'Windy': {False: 'Yes', True: 'No'}},
+    'Sunny': {'Humidity': {'High': 'No', 'Normal': 'Yes'}}
+}}
+
+== New Sample Classification ==
+Input Sample: {'Outlook': 'Sunny', 'Temperature': 'Cool', 'Humidity': 'High', 'Windy': True}
+Predicted Class: No
+
+
