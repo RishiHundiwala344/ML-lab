@@ -1,0 +1,90 @@
+Build Logistic Regression Model for a given dataset
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# 1. Simulated Dataset
+# -----------------------------
+# Binary classification: Predict if it will rain (1) or not (0) based on weather conditions
+data = {
+    'Temperature': [30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
+    'Humidity':    [90, 85, 80, 78, 70, 65, 60, 55, 50, 45],
+    'RainToday':   [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]
+}
+df = pd.DataFrame(data)
+
+# Features and target
+X = df[['Temperature', 'Humidity']].values
+y = df['RainToday'].values.reshape(-1, 1)
+
+# -----------------------------
+# 2. Preprocessing: Add Bias Term
+# -----------------------------
+X = np.hstack((np.ones((X.shape[0], 1)), X))  # Add column of 1s
+
+# -----------------------------
+# 3. Define Logistic Functions
+# -----------------------------
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def compute_cost(X, y, theta):
+    m = len(y)
+    h = sigmoid(X @ theta)
+    cost = -(1/m) * (y.T @ np.log(h + 1e-10) + (1 - y).T @ np.log(1 - h + 1e-10))
+    return cost.item()
+
+def gradient_descent(X, y, theta, lr, iterations):
+    m = len(y)
+    cost_history = []
+
+    for i in range(iterations):
+        h = sigmoid(X @ theta)
+        gradient = (1/m) * (X.T @ (h - y))
+        theta -= lr * gradient
+        cost = compute_cost(X, y, theta)
+        cost_history.append(cost)
+
+    return theta, cost_history
+
+# -----------------------------
+# 4. Training the Model
+# -----------------------------
+theta_init = np.zeros((X.shape[1], 1))  # [bias, temp, humidity]
+learning_rate = 0.01
+iterations = 1000
+
+theta_final, cost_history = gradient_descent(X, y, theta_init, learning_rate, iterations)
+
+# -----------------------------
+# 5. Prediction
+# -----------------------------
+def predict(X, theta):
+    return (sigmoid(X @ theta) >= 0.5).astype(int)
+
+y_pred = predict(X, theta_final)
+
+# -----------------------------
+# 6. Print Results
+# -----------------------------
+print("== Logistic Regression ==")
+print("Final Coefficients (theta):")
+print(f"  Intercept  : {theta_final[0][0]:.2f}")
+print(f"  Temperature: {theta_final[1][0]:.2f}")
+print(f"  Humidity   : {theta_final[2][0]:.2f}")
+print()
+print("Predictions:", y_pred.ravel())
+print("Actual     :", y.ravel())
+print(f"Accuracy   : {np.mean(y_pred == y) * 100:.2f}%")
+
+# -----------------------------
+# 7. Visualization (Cost over Time)
+# -----------------------------
+plt.plot(cost_history)
+plt.title('Cost Function over Iterations')
+plt.xlabel('Iteration')
+plt.ylabel('Cost')
+plt.grid(True)
+plt.show()
